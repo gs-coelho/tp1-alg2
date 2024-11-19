@@ -159,5 +159,38 @@ class Dictionary():
         # Starts recursive removal from root
         success, _ = _remove(self.root, bit_str, 0)
         return success
+    
+    def reroot(self) -> bool:
+        """
+        Creates a new root for the underlying trie. If the trie is not empty,
+        places the old root as child to the new root, with prefix 0 and no value.
+        Returns true if rerooting took place, and false if it didn't.
+        """
+
+        num_children = 2 - self.root.children.count(None)
+
+        # No values to be rerooted
+        if num_children == 0:
+            return False
+        
+        # Root has a single child, that would be fused into the new 0 node, so we
+        # can just modify the current only child
+        if self.root.children.count(None) == 1:
+            bit = 1 - self.root.children.index(None)
+            child = self.root.children[bit]
+            child.prefix = '0' + child.prefix
+            self.root.children = [child, None]
+            return True
+        
+        # Root has two children, transform it into the new 0 node and attach to new root
+        old_root = self.root
+        new_root = Node('', None)
+
+        old_root.prefix = '0'
+        new_root.children[0] = old_root
+
+        self.root = new_root
+        return True
+        
 
         
