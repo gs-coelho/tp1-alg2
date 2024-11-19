@@ -5,42 +5,262 @@ authors:
   - name: "Victor Gabriel Moura Oliveira"
 toc: true
 number-sections: false
+highlight-style: github
+code-tools: true
 lang: pt-br
 format: 
-  html: 
+  html:
     code-fold: true
 ---
 
-# Introdução
+## Introdução
 
 O objetivo deste trabalho é implementar o algoritmo LZW (Lempel-Ziv-Welch) de compressão de arquivos. O método se baseia na substituição de strings que se repetem no texto por códigos, e para isso, faz muitas consultas a um dicionário. Para a implementação desse dicionário, uma árvore de prefixos foi utilizada, em especial uma trie compacta que se baseia nos códigos binários das chaves a serem armazenadas.
 
 Este relatório aborda primeiro a implementação do algoritmo em si, dando uma explicação do código e de como ele se deu. Em seguida, há uma seção de análise, onde testes com diferentes entradas são feitos a fim de observar como o programa se comporta nesses diferentes casos, utilizando métricas geradas durante a execução para quantificar as diferenças.
 
-# Implementação
+## Implementação
 
 Haviam duas opções de linguagem de programação para o trabalho: C/C++ e Python. O Python foi escolhido devido à sua facilidade de escrita e de compreensão: enquanto o C++ permite um maior controle sobre a alocação de memória e outros detalhes de mais baixo nível, o Python tem funcionalidades como um coletor de lixo que permitem um foco maior na lógica do programa em si, e os detalhes são gerenciados pela própria linguagem.
 
 O código do programa pode ser dividido em duas partes principais, que são abordadas mais à frente com mais detalhes:
 
 1. Encoder/Decoder \
-Essa é a parte responsável pela implementação do algoritmo LZW em si, assim como pelo gerenciamento, leitura e escrita dos arquivos utilizados, traduzindo-os do binário para as strings e vice-versa.
+Essa é a parte responsável pela implementação do algoritmo LZW em si, assim como pelo gerenciamento, leitura e escrita dos arquivos utilizados, traduzindo-os do binário para as strings e vice-versa. Existem duas versões deste código - a versão com códigos de tamanho fixo e a versão com códigos de tamanho variável, que serão tratados separadamente.
 
 2. Dicionário \
 Essa é a parte onde o conteúdo visto em sala é utilizado, implementando uma trie compacta para armazenar as strings e os códigos utilizados no algoritmo LZW.
 
-## Encoder/Decoder
+### Encoder/Decoder
 
 {{< lipsum 2 >}}
 
-## Dicionário
+### Dicionário
+
+Para a implementação do dicionário, utilizamos uma árvore de prefixos, em especial uma árvore trie compacta. Nesta árvore, as chaves de busca e inserção são os valores binários dos códigos ou do conteúdo dos arquivos, transformados em strings de 0s e 1s. Isso aumenta o custo em memória do algoritmo, que utiliza um caractere para cada bit da chave, mas facilita a implementação dos algoritmos que precisam manipular e comparar essas strings para verificar quando os prefixos casam.
+
+A trie implementada aqui trata a raiz como um nó cabeça, onde o prefixo armazenado é a string vazia. Contanto que os devidos cuidados sejam tomados ao manipular este nó, isso facilita a implementação dos métodos, visto que todos eles podem iniciar a partir dela seguramente, sabendo que a string vazia é um prefixo de todas as strings.
+
+A seguir, temos uma explicação dos métodos implementados na classe do Dicionário, incluindo os métodos auxiliares.
+
+#### `_prefix_match`
+
+Um método auxiliar `_prefix_match` foi implementado para fazer as comparações entre diferentes strings: ele verifica qual é o maior prefixo em comum entre as duas strings passadas. Isso é útil na inserção, por exemplo, onde o método é utilizado para descobrir a partir de que ponto a chave a ser inserida diverge da chave já armazenada, e que porção destas deve ser passada para um nó filho.
+
+```{python}
+def _prefix_match(self, s1: str, s2: str) -> int:
+    """Returns the length of the largest common prefix of s1 and s2"""
+    i = 0
+    for c1, c2 in zip(s1, s2):
+        if c1 != c2:
+            break
+        i += 1
+    return i
+```
+
+#### `search`
+
+Este é o método que performa a busca na trie compacta. A partir da raiz, ele escolhe um dos filhos para buscar baseado no primeiro dígito da parte ainda não casada da chave que está sendo buscada. Ele então verifica se a chave casa todo o prefixo armazenado naquele nó, acumula o prefixo casado, e em seguida, repete o processo a partir deste nó filho, e assim sucessivamente até que a chave seja encontrada, a profundidade da trie seja exaurida, ou alguma divergência ocorra. Nesses últimos dois casos, a chave não está na trie.
+
+```{python}
+def search(self, bit_str: str):
+    """Searches a bit string in the dictionary and returns the value on success, or None if not found."""
+
+    node = self.root
+    i = 0
+    length = len(bit_str)
+
+    while i < length:
+        bit = int(bit_str[i])
+
+        # Search reached a leaf without fully matching bit_str
+        if node.children[bit] is None:
+            return None
+        
+        # Child diverges from bit_str -> there can't be a leaf that matches bit_str fully
+        child = node.children[bit]
+        if not bit_str.startswith(child.prefix, i):
+            return None
+        
+        node = child
+        i += len(child.prefix)
+    return node.value
+```
+
+#### `insert`
+
+Este método é responsável por inserir na trie novos nós com uma chave e um valor, e atualizar o valor já presente caso a chave sendo inserida seja uma chave já inserida anteriormente. 
+
+A ideia é percorrer a trie, de forma similar ao método de busca, buscando o nó onde a chave deveria estar, se estivesse presente. Se ela estiver de fato presente na trie, atualiza o valor já armazenado. Se houver divergência em algum nó e o prefixo armazenado nele não casar completamente com a chave sendo inserida, um novo filho é criado neste nó com a parte da nova chave que não foi casada, remanejando a trie para que ela se mantenha em um estado válido.
+
+```{python}
+def insert(self, bit_str: str, value: any):
+    """
+    Inserts a new value, with bit_str as the key, and updates the value if it already exists.
+    Returns False if the key was updated, or True if it was inserted fresh.
+    """
+
+    node = self.root
+    i = 0
+    length = len(bit_str)
+
+    while i < length:
+        bit = int(bit_str[i])
+        if node.children[bit] is None:
+            # Creates a new node with the rest of bit_str as the key
+            new_node = Node(bit_str[i:], value)
+            node.children[bit] = new_node
+            return True
+        
+        child = node.children[bit]
+        common_prefix_length = self._prefix_match(child.prefix, bit_str[i:])
+
+        if common_prefix_length == len(child.prefix):
+            # The whole prefix matched -> move to the apropriate child
+            node = child
+            i += common_prefix_length
+        else:
+            # The strings diverge at this node -> separate into 2 subtrees
+            new_prefix = child.prefix[:common_prefix_length]
+            existing_suffix = child.prefix[common_prefix_length:]
+            new_suffix = bit_str[i + common_prefix_length:]
+
+            # Create new intermediary node for common prefix
+            new_node = Node(new_prefix)
+
+            # Transform old node and add it as child to the new node
+            child.prefix = existing_suffix
+            existing_suffix_bit = int(existing_suffix[0])
+            new_node.children[existing_suffix_bit] = child
+
+            # Adds a leaf to the new node if there is a suffix left in bit_str
+            if len(new_suffix) > 0:
+                leaf_node = Node(new_suffix, value)
+                leaf_node_bit = int(new_suffix[0])
+                new_node.children[leaf_node_bit] = leaf_node
+            else:
+                new_node.value = value
+            
+            # Adds new intermediary node to the tree 
+            node.children[bit] = new_node
+            return True
+
+    # The key already existed in the trie -> update its value
+    node.value = value
+    return False
+```
+
+#### `remove`
+
+Este é o método responsável pela remoção de elementos da trie, a partir de uma chave dada, retornando para o programa se a remoção teve sucesso ou não. Ele utiliza um método interno auxiliar `_remove` que, recursivamente, percorre a árvore, aumentando o nível de profundidade até encontrar o nó que precisa ser apagado, caso exista. Em seguida, ele propaga para cima se o nó deve ser apagado ou não, de forma que, caso um nó possa ser compactado ou fique vazio, seu nó pai é avisado e o processo de compactação é feito. Esse efeito de propagação continua até atingir um nó que não precise ser apagado, indicando que, dali para cima, a trie não precisa ser modificada.
+
+A recursão é necessária aqui porque os nós da árvore de prefixos não têm um ponteiro para o pai, então esse mecanismo é utilizado para que seja possível viajar na árvore no sentido inverso. Esse método recursivo é o que garante que a trie compacta permaneça compacta ao remover um elemento, e sem isso a árvore poderia ser deixada num estado inválido. 
+
+```{python}
+def remove(self, bit_str: str) -> bool:
+    """
+    Removes key from dictionary, returning True on success and False on failure
+    (ex. if the key isn't in the dictionary)
+    """
+
+    def _remove(node: Node, bit_str: str, depth: int) -> tuple[bool, bool]:
+        """
+        Recursive method for removing key.
+        Returns a tuple (bool, bool) indicating if the removal was successful
+        and if the child can be removed, respectively.
+        """
+        # Node doesn't exist
+        if node is None:
+            return (False, False)
+
+        # When the corresponding node is found
+        if depth == len(bit_str):
+            if node.value is not None:
+                node.value = None  # Delete value
+                return (True, node.is_leaf()) # Node is leaf -> can be deleted
+            
+            return (True, False)
+
+        bit = int(bit_str[depth])
+        if node.children[bit] is None:
+            return (False, False)  # String is not in trie
+        
+        child = node.children[bit]
+
+        common_prefix_length = self._prefix_match(child.prefix, bit_str[depth:])
+
+        # bit_str diverges from the prefix, so it can't be on the trie
+        if common_prefix_length < len(child.prefix):
+            return (False, False)
+        
+        success, can_remove_child = _remove(child, bit_str, depth + common_prefix_length)
+        if can_remove_child:
+            node.children[bit] = None
+
+            # If node now became an empty leaf, it can be removed too
+            if node.is_leaf() and node.value is None:
+                return (success, True)
+
+            # Node is not root, is empty and stil has another child that can be compacted into it
+            if node.prefix != '' and node.value is None and node.children.count(None) == 1:
+                remaining_child = node.children[1 - bit]
+                node.prefix += remaining_child.prefix
+                node.value = remaining_child.value
+                node.children = remaining_child.children
+                return (success, False)
+
+        # Child couldn't be removed. Assuming tree was valid before, it should remain valid.
+        return (success, False)
+
+    # Starts recursive removal from root
+    success, _ = _remove(self.root, bit_str, 0)
+    return success
+```
+
+#### `reroot`
+
+Essa função não implementa uma funcionalidade padrão de um dicionário, mas sim uma funcionalidade útil para o algoritmo LZW. O objetivo desta função é acrescentar um prefixo 0 a todas as chaves já armazenadas na árvore. Isto é útil ao implementar o LZW com tamanho de código variável, pois, quando os códigos precisam aumentar de tamanho, essa função aumenta o tamanho de todos os códigos antigos para que sejam compatíveis com os novos códigos.
+
+Para atingir esse objetivo, a função cria uma nova raiz, transforma a antiga raiz para que ela possua um prefixo de 0, e define esse nó transformado como filho da nova raiz, de forma que toda a trie anterior se torna uma subárvore com prefixo 0. Um cuidado é tomado caso a raiz tenha apenas um filho, para que a propriedade de compactação da trie seja mantida.
+
+```{python}
+def reroot(self) -> bool:
+    """
+    Creates a new root for the underlying trie. If the trie is not empty,
+    places the old root as child to the new root, with prefix 0 and no value.
+    Returns true if rerooting took place, and false if it didn't.
+    """
+
+    num_children = 2 - self.root.children.count(None)
+
+    # No values to be rerooted
+    if num_children == 0:
+        return False
+    
+    # Root has a single child, that would be fused into the new 0 node, so we
+    # can just modify the current only child
+    if self.root.children.count(None) == 1:
+        bit = 1 - self.root.children.index(None)
+        child = self.root.children[bit]
+        child.prefix = '0' + child.prefix
+        self.root.children = [child, None]
+        return True
+    
+    # Root has two children, transform it into the new 0 node and attach to new root
+    old_root = self.root
+    new_root = Node('', None)
+
+    old_root.prefix = '0'
+    new_root.children[0] = old_root
+
+    self.root = new_root
+    return True
+```
+
+## Análise
 
 {{< lipsum 2 >}}
 
-# Análise
-
-{{< lipsum 2 >}}
-
-# Conclusão
+## Conclusão
 
 {{< lipsum 2 >}}
