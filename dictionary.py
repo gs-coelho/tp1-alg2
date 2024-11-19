@@ -9,7 +9,9 @@ class Node():
         return not any(self.children)
 
 class Dictionary():
-    def __init__(self) -> None:
+    def __init__(self, initial_code_size) -> None:
+        # zero_code = bin(0)[2:].zfill(initial_code_size)
+        # one_code = bin(1)[2:].zfill(initial_code_size)
         self.root = Node('', None, [Node("0", 0), Node("1", 1)])
     
     def _prefix_match(self, s1: str, s2: str) -> int:
