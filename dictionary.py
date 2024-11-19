@@ -143,8 +143,8 @@ class Dictionary():
                 if node.is_leaf() and node.value is None:
                     return (success, True)
 
-                # Node is not root and stil has another child that can be compacted into it
-                if node.prefix != '' and node.children.count(None) == 1:
+                # Node is not root, is empty and stil has another child that can be compacted into it
+                if node.prefix != '' and node.value is None and node.children.count(None) == 1:
                     remaining_child = node.children[1 - bit]
                     node.prefix += remaining_child.prefix
                     node.value = remaining_child.value
