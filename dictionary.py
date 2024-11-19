@@ -1,4 +1,3 @@
-import typing
 class Node():
     def __init__(self, prefix: str = None, value: any = None, children: list['Node'] = None) -> None:
         self.prefix = prefix
