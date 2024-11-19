@@ -1,0 +1,46 @@
+---
+title: "Trabalho Prático 1 - Manipulação de Sequências"
+authors:
+  - name: "Gabriel Coelho dos Santos"
+  - name: "Victor Gabriel Moura Oliveira"
+toc: true
+number-sections: false
+lang: pt-br
+format: 
+  html: 
+    code-fold: true
+---
+
+# Introdução
+
+O objetivo deste trabalho é implementar o algoritmo LZW (Lempel-Ziv-Welch) de compressão de arquivos. O método se baseia na substituição de strings que se repetem no texto por códigos, e para isso, faz muitas consultas a um dicionário. Para a implementação desse dicionário, uma árvore de prefixos foi utilizada, em especial uma trie compacta que se baseia nos códigos binários das chaves a serem armazenadas.
+
+Este relatório aborda primeiro a implementação do algoritmo em si, dando uma explicação do código e de como ele se deu. Em seguida, há uma seção de análise, onde testes com diferentes entradas são feitos a fim de observar como o programa se comporta nesses diferentes casos, utilizando métricas geradas durante a execução para quantificar as diferenças.
+
+# Implementação
+
+Haviam duas opções de linguagem de programação para o trabalho: C/C++ e Python. O Python foi escolhido devido à sua facilidade de escrita e de compreensão: enquanto o C++ permite um maior controle sobre a alocação de memória e outros detalhes de mais baixo nível, o Python tem funcionalidades como um coletor de lixo que permitem um foco maior na lógica do programa em si, e os detalhes são gerenciados pela própria linguagem.
+
+O código do programa pode ser dividido em duas partes principais, que são abordadas mais à frente com mais detalhes:
+
+1. Encoder/Decoder \
+Essa é a parte responsável pela implementação do algoritmo LZW em si, assim como pelo gerenciamento, leitura e escrita dos arquivos utilizados, traduzindo-os do binário para as strings e vice-versa.
+
+2. Dicionário \
+Essa é a parte onde o conteúdo visto em sala é utilizado, implementando uma trie compacta para armazenar as strings e os códigos utilizados no algoritmo LZW.
+
+## Encoder/Decoder
+
+{{< lipsum 2 >}}
+
+## Dicionário
+
+{{< lipsum 2 >}}
+
+# Análise
+
+{{< lipsum 2 >}}
+
+# Conclusão
+
+{{< lipsum 2 >}}
