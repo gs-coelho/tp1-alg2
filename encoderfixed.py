@@ -1,9 +1,10 @@
 from dictionary import Dictionary
 
-class encoder():
+class encoderfixed():
     def __init__(self, input: str, codes_max_size: int) -> None:
         self.__input = input
-        self.__trie = Dictionary(initial_code_size=codes_max_size)
+        self.__trie = Dictionary(initial0_key="0",initial0_value=0,
+                                 initial1_key="1",initial1_value=1)
         self.__codes_count = 2
         self.__codes_bit_size = codes_max_size
         

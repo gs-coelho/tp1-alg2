@@ -9,10 +9,14 @@ class Node():
         return not any(self.children)
 
 class Dictionary():
-    def __init__(self, initial_code_size) -> None:
-        # zero_code = bin(0)[2:].zfill(initial_code_size)
-        # one_code = bin(1)[2:].zfill(initial_code_size)
-        self.root = Node('', None, [Node("0", 0), Node("1", 1)])
+    def __init__(self,initial0_key, initial0_value, initial1_key, initial1_value) -> None:
+        for i, _ in enumerate(initial0_key): # get the biggest commom prefix
+            if initial0_key[i] != initial1_key[i]:
+                break
+            
+        self.root = Node("", None)
+        self.insert(initial0_key,initial0_value)
+        self.insert(initial1_key,initial1_value)
     
     def _prefix_match(self, s1: str, s2: str) -> int:
         """Returns the length of the largest common prefix of s1 and s2"""
@@ -27,7 +31,7 @@ class Dictionary():
         """Searches a bit string in the dictionary and returns the value on success, or None if not found."""
 
         node = self.root
-        i = 0
+        i = len(node.prefix)
         length = len(bit_str)
 
         while i < length:
@@ -53,9 +57,10 @@ class Dictionary():
         """
 
         node = self.root
+        #i = self._prefix_match(node.prefix, bit_str[i:])
         i = 0
+        
         length = len(bit_str)
-
         while i < length:
             bit = int(bit_str[i])
             if node.children[bit] is None:
@@ -98,7 +103,8 @@ class Dictionary():
                 return True
 
         # The key already existed in the trie -> update its value
-        node.value = value
+        #node.value = value
+        #changed, keep the value
         return False
     
     def remove(self, bit_str: str) -> bool:

@@ -1,8 +1,8 @@
 import random
 import unicodedata
 import re
-from encoder import encoder, encoderold
-#from decoder import decoder
+from encoderfixed import encoderfixed, encoderold
+from decoderfixed import decoderfixed
 
 def normalize_text(text):
     """
@@ -42,15 +42,17 @@ def random_binary_string(length):
     return ''.join(random.choices('01', k=length))
 
 
+CODE_SIZE = 12
 
-
-#INPUT_BYTES = 100000
+INPUT_BYTES = 4
 #input_bitstr = random_binary_string(INPUT_BYTES*8) 
-input_bitstr = text_to_binary_string("/home/victor/Projects/tp1-alg2/frankesteinfull.txt")
-#print(input_bitstr)
+#input_bitstr = text_to_binary_string("/home/victor/Projects/tp1-alg2/validation_data/frankesteinCh1-2.txt")
+input_bitstr = "01101011100111111011010101011100"
+print("input bits")
+print(input_bitstr)
 
 
-encoder = encoder(input=input_bitstr,codes_max_size=16)
+encoder = encoderfixed(input=input_bitstr,codes_max_size=12)
 encoding = encoder.encode()
 
 
@@ -59,11 +61,11 @@ print(len(input_bitstr))
 print("encoding size")
 print(len(encoding))
 
-# decoder = decoder(encoding=encoding)
-# decoding = decoder.decode()
+decoder = decoderfixed(encoding=encoding, code_size=12)
+decoding = decoder.decode()
 
-# print("decoding")
-# print(decoding)
+print("decoding")
+print(decoding)
 
-# if (decoding == input_bitstr):
-#     print("deu certo")
+if (decoding == input_bitstr):
+    print("deu certo")
