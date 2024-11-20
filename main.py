@@ -1,8 +1,10 @@
 import random
 import unicodedata
 import re
-from encoderfixed import encoderfixed, encoderold
+from encoderfixed import encoderfixed
 from decoderfixed import decoderfixed
+from encodervariable import encodervariable
+from decodervariable import decodervariable
 from argparse import ArgumentParser
 from os import path
 
@@ -52,7 +54,7 @@ def random_binary_string(length):
 if __name__ == "__main__":
     parser = ArgumentParser()
 
-    parser.add_argument("filename", help="caminho do arquivo a ser comprimido/descomprimido")
+    parser.add_argument("-filename", help="caminho do arquivo a ser comprimido/descomprimido")
     parser.add_argument("-s", "--stats", action="store_true", help="gera estatísticas da compressão/decompressão")
     parser.add_argument("-v", "--variable", action="store_true", help="executa a compressão LZW com tamanho de código variável, ao invés de tamanho fixo (padrão)")
     parser.add_argument("-m", "--maxsize", nargs="?", const=12, default=12, help="tamanho máximo de código", type=int)
@@ -71,16 +73,33 @@ if __name__ == "__main__":
     input_bitstr = file_to_binary_string(input_file_path)
 
     if VARIABLE:
-        pass
+        encoder = encodervariable(input=input_bitstr, codes_max_size=MAX_SIZE, stats=STATS)
+        encoding, stats_encoding = encoder.encode()
+        
+        decoder = decodervariable(encoding=encoding, initial_code_size=MAX_SIZE, stats=STATS)
+        decoding, stats_decoding = decoder.decode()
     else:
-        encoder = encoderfixed(input=input_bitstr, codes_max_size=MAX_SIZE)
-        encoding = encoder.encode()
-        decoder = decoderfixed(encoding=encoding, code_size=MAX_SIZE)
-        decoding = decoder.decode()
-
-        if (decoding == input_bitstr):
-            print("deu certo")
-
+        encoder = encoderfixed(input=input_bitstr, codes_max_size=MAX_SIZE, stats=STATS)
+        encoding, stats_encoding = encoder.encode()
+        
+        decoder = decoderfixed(encoding=encoding, code_size=MAX_SIZE, stats=STATS)
+        decoding, stats_decoding = decoder.decode() # CR: media da quantidade de bits gerados a partir da codificacao a cada 50 iteracoes
+              # print(stats["decompression_rates"][0:5])
+    if STATS:
+            print("\n\n### Estatisticas da compressao: ###\n\n")
+            print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
+                                                # avaliada a cada 80 bits
+            print("tamanho (em bits) do input:" + str(stats_encoding["input_size"]))                                        
+            print("tamanho (em bits) apos encoding: " + str(stats_encoding["encoded_size"]))
+            print("quantidade de codigos inseridos: " + str(stats_encoding["dict_size"]))
+            print("\n\n####################################\n\n")
+        # plot compression rate in here
+        
+            print("\n\n### Estatisticas da descompressao: ###\n\n")
+            print(f"tempo de decodificacao (em segundos): {stats_decoding['time']:.2f}")
+            print(f"quantidade de codigos usados: {stats_decoding['dict_size']}")
+            print("\n\n####################################\n\n")
+  
 
 # print("input size")
 # print(len(input_bitstr))
