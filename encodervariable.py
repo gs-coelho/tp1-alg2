@@ -2,7 +2,7 @@ from dictionary import Dictionary
 import time
 
 class encodervariable():
-    def __init__(self, input: str, initial_code_size: int, stats: bool) -> None:
+    def __init__(self, input: str, initial_code_size: int, stats: bool, max_code_size:int = 30) -> None:
         self.__input = input
         self.__trie = Dictionary(initial0_key="0",initial0_value=0,
                                  initial1_key="1",initial1_value=1)

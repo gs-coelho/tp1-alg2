@@ -52,8 +52,6 @@ class encoderfixed():
         self.__stats["time"] = end_time - start_time
         self.__stats["dict_size"] = self.__codes_count
         self.__stats["encoded_size"] = len(encoding)
-        #print("codigos inseridos")
-        #print(self.__codes_count)
         return encoding, self.__stats
     
     

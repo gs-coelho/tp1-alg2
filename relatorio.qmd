@@ -33,7 +33,212 @@ Essa é a parte onde o conteúdo visto em sala é utilizado, implementando uma t
 
 ### Encoder/Decoder
 
-{{< lipsum 2 >}}
+### 1. Encoder com código de tamanho fixo\
+Esta implementação usa códigos com tamanho predinido por parâmetro (default = 12). Quando o limite de códigos possíveis com n bits é atingido (2^n), não são mais criados códigos e apenas aqueles previamente inseridos são utilizados.
+
+### `encode`
+Realiza a codificação dos bits de input em codigos com tamanho de string fixo. Cria uma trie com chaves que representam sequencias de bits e valores que representam os códigos (sequenciais).
+#### Funcionamento: 
+Dado que um dicionario com os dois simbolos do alfabeto(0 e 1) já foi construido. Em seguida, o algoritmo consome símbolos do arquivo de entrada um-a-um. Ao ler um novo símbolo x, o algoritmo concatena x a uma string I, lida anteriormente, e verifica se a string Ix já foi armazenada no dicionário. Caso ela já tenha sido armazenada, o algoritmo atualiza a string I com a nova string Ix, e repete o processo. Caso a string Ix não tenha sido armazenada ainda, o algoritmo adiciona o código referente a I na string de codificação.Caso ainda houverem codigos disponíveis, insere a string Ix associada a um novo código (sequencial) no dicionário, atualiza I com x. Repete o processo até que não haja mais símbolos de entrada.
+```{python}
+    def encode(self):
+        encoding = ""
+        I = ""
+        max_code = pow(2,self.__codes_bit_size)
+        count_compressions = 0
+        start_time = time.time()
+        for idx,i in enumerate(self.__input):
+            if(self.__stats != None and idx > 0 and idx % 80 == 0):
+                self.__stats["compression_rates"].append(count_compressions/80)
+                count_compressions = 0
+            if self.__trie.search(I+i) != None:
+                I = I + i
+                count_compressions += 1
+            else:
+                if self.__codes_count < max_code: # ainda nao estourei o numero de codigos
+                    self.__trie.insert(I+i,self.__codes_count)
+                    self.__codes_count += 1
+                    
+                code = self.__trie.search(I)
+                code_in_binary = bin(code)
+                code_in_binary = code_in_binary[2:]
+                code_in_binary = code_in_binary.zfill(self.__codes_bit_size)
+                encoding+=code_in_binary
+                I = i
+        
+        if I != "":
+            code_in_binary = bin(self.__trie.search(I))[2:].zfill(self.__codes_bit_size)
+            encoding+=code_in_binary
+        
+        end_time = time.time()
+        self.__stats["time"] = end_time - start_time
+        self.__stats["dict_size"] = self.__codes_count
+        self.__stats["encoded_size"] = len(encoding)
+        return encoding, self.__stats
+```
+
+### `decode`
+Realiza a decodificação. Cria uma árvore trie que busca copiar a árvore da codificação, porém nesse caso a árvore mapeia de código para sequencia original de bits.
+#### Funcionamento:
+Considerando que o dicionário com os dois símbolos já foi construído. O algoritmo então consome códigos da string de entrada (codificação) em blocos do tamanho definido para os códigos. Ao ler um código, o algoritmo verifica se esse já foi inserido no dicionário. Caso tenha sido, o primeiro símbolo dessa string é concatenado a string anterior, o resultado é adicionado ao dicionário caso já não esteja (foi utilizado um dicionário auxiliar para verificar isso), e impresso na saída. Finalmente, a string anterior é atualizada com a string recuperado pelo código e o processo se repete. Caso o código não esteja no dicionário, a string é concatenada ao seu primeiro símbolo, o resultado é adicionado ao dicionário e concatenado na saída.
+```{python}
+    def decode(self):
+        decoding = ""
+        previous_str = ""
+        idx = 0
+        it = 0
+        decompressing_acumulator = 0
+        start_time = time.time()
+        insertions = 2
+        while idx < len(self.__encoding):
+            # used to calculate the decompressing rate 
+            if(self.__stats != None and it > 0 and it % 50 == 0):
+                self.__stats["decompression_rates"].append(decompressing_acumulator/50)
+                decompressing_acumulator = 0
+            actual_code = self.__encoding[idx : idx+self.__code_size]
+            if idx == 0: # trata especialmente o primeiro codigo
+                previous_str = self.__table.search(actual_code)
+                idx += self.__code_size
+                continue
+            insertions += 2
+            # busca o codigo no dicionario
+            actual_str = self.__table.search(actual_code) 
+            if (actual_str != None):# codigo na tabela
+                if self.__inserted_strs.search(previous_str + actual_str[0]) == None:
+                    code_in_binary = bin(self.__code_count)[2:].zfill(self.__code_size)
+                    self.__table.insert(code_in_binary, previous_str + actual_str[0])
+                    # dicionario auxiliar que possui como chave as sequencias inseridas
+                    self.__inserted_strs.insert(previous_str + actual_str[0],0)
+                    self.__code_count += 1
+                decoding += previous_str
+                decompressing_acumulator += len(previous_str)
+                previous_str = actual_str
+            else:
+                code_in_binary = bin(self.__code_count)[2:].zfill(self.__code_size)
+                self.__table.insert(code_in_binary,previous_str + previous_str[0])
+                self.__inserted_strs.insert(previous_str + previous_str[0],0)
+                self.__code_count += 1
+                decoding += previous_str
+                decompressing_acumulator += len(previous_str)
+                previous_str = previous_str + previous_str[0]
+    
+            idx += self.__code_size
+            it += 1
+        
+        end_time = time.time()
+        self.__stats["time"] = end_time - start_time
+        self.__stats["dict_size"] = insertions                            
+        decoding += previous_str    
+        return decoding, self.__stats
+```
+
+### 2. Encoder com código de tamanho variável\
+Esta implementação usa códigos com tamanho inicial definido por parâmetro (default = 12) e crescente conforme a necessidade por novos códigos. Quando o limite de códigos máximo com n bits é atingido (2^n), não são mais criados códigos e apenas aqueles previamente inseridos são utilizados.
+
+### `encode`
+Realiza a codificação de forma semelhar à implementação fixa. No entanto, separa os códigos formados por apenas 1's para serem flags indicadoras da mudança de tamanho dos códigos. 
+```{python}
+    def encode(self):
+        encoding = ""
+        I = ""
+        count_compressions = 0
+        start_time = time.time()
+        for idx, i in enumerate(self.__input):
+            if(self.__stats != None and idx > 0 and idx % 80 == 0):
+                self.__stats["compression_rates"].append(count_compressions/80)
+                count_compressions = 0
+            max_code = pow(2,self.__codes_bit_size)
+            if self.__trie.search(I+i) != None:
+                I = I + i
+                count_compressions += 1
+            else:
+                estourou = False
+                if self.__codes_count == max_code-1: # estourei o numero de codigos
+                    estourou = True
+                    Icode_in_binary = bin(self.__trie.search(I))[2:].zfill(self.__codes_bit_size)
+                    encoding+=Icode_in_binary
+                    ones = bin(pow(2,self.__codes_bit_size) - 1)[2:]
+                    encoding += ones
+                    self.__codes_bit_size += 1
+                    self.__codes_count += 1
+                self.__trie.insert(I+i,self.__codes_count)
+                self.__codes_count += 1
+                if not estourou: # caso nao tenha estourado nessa iteracao
+                    code = self.__trie.search(I)
+                    code_in_binary = bin(code)
+                    code_in_binary = code_in_binary[2:]
+                    code_in_binary = code_in_binary.zfill(self.__codes_bit_size)
+                    encoding+=code_in_binary
+                I = i
+        
+        if I != "":
+            code_in_binary = bin(self.__trie.search(I))[2:].zfill(self.__codes_bit_size)
+            encoding+=code_in_binary
+        end_time = time.time()
+        self.__stats["time"] = end_time - start_time
+        self.__stats["dict_size"] = self.__codes_count
+        self.__stats["encoded_size"] = len(encoding)
+        return encoding, self.__stats
+```
+
+### `decode`
+Implementação semelhante à implementação fixa. No entanto, precisa tratar o caso de que o código passado é uma flag para a mudança de tamanho dos códigos.
+```{python}
+    def decode(self):
+        decoding = ""
+        previous_str = ""
+        idx = 0
+        it = 0
+        decompressing_acumulator = 0
+        start_time = time.time()
+        insertions = 2
+        while idx < len(self.__encoding):
+            # decompression rate computation
+            if(self.__stats != None and it > 0 and it % 50 == 0):
+                self.__stats["decompression_rates"].append(decompressing_acumulator/50)
+                decompressing_acumulator = 0
+            actual_code = self.__encoding[idx : idx+self.__code_size]
+            if idx == 0:
+                previous_str = self.__table.search(actual_code)
+                idx += self.__code_size
+                continue
+            #flag atual
+            flag = bin(pow(2,self.__code_size) -1)[2:]
+            if actual_code == flag:
+                self.__table.reroot()
+                self.__code_count += 1
+                idx += self.__code_size
+                self.__code_size += 1
+                continue
+            insertions += 2
+            actual_str = self.__table.search(actual_code) 
+            if (actual_str != None):# codigo na tabela
+                if self.__inserted_strs.search(previous_str + actual_str[0]) == None:
+                    code_in_binary = bin(self.__code_count)[2:].zfill(self.__code_size)
+                    self.__table.insert(code_in_binary, previous_str + actual_str[0])
+                    self.__inserted_strs.insert(previous_str + actual_str[0],0)
+                    self.__code_count += 1
+                decoding += previous_str
+                decompressing_acumulator += len(previous_str)
+                previous_str = actual_str
+            else:
+                code_in_binary = bin(self.__code_count)[2:].zfill(self.__code_size)
+                self.__table.insert(code_in_binary,previous_str + previous_str[0])
+                self.__inserted_strs.insert(previous_str + previous_str[0],0)
+                self.__code_count += 1
+                decoding += previous_str
+                decompressing_acumulator += len(previous_str)
+                previous_str = previous_str + previous_str[0]
+    
+            idx += self.__code_size
+            it += 1
+        
+        end_time = time.time()
+        self.__stats["time"] = end_time - start_time
+        self.__stats["dict_size"] = insertions                   
+        decoding += previous_str    
+        return decoding, self.__stats
+```
 
 ### Dicionário
 
