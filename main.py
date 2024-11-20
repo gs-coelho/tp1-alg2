@@ -7,6 +7,7 @@ from encodervariable import encodervariable
 from decodervariable import decodervariable
 from argparse import ArgumentParser
 from os import path
+import matplotlib.pyplot as plt
 
 def normalize_text(text):
     """
@@ -51,6 +52,17 @@ def binary_string_to_file(file_path, binary_string):
 def random_binary_string(length):
     return ''.join(random.choices('01', k=length))
 
+def plot_list(y,y_label,x_label,save_path,title):
+    x = list(range(len(y)))
+    plt.clf()
+    plt.plot(x, y)
+    
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    
+    plt.savefig(save_path)
+
 if __name__ == "__main__":
     parser = ArgumentParser()
 
@@ -73,7 +85,7 @@ if __name__ == "__main__":
     input_bitstr = file_to_binary_string(input_file_path)
 
     if VARIABLE:
-        encoder = encodervariable(input=input_bitstr, codes_max_size=MAX_SIZE, stats=STATS)
+        encoder = encodervariable(input=input_bitstr, initial_code_size=MAX_SIZE, stats=STATS)
         encoding, stats_encoding = encoder.encode()
         
         decoder = decodervariable(encoding=encoding, initial_code_size=MAX_SIZE, stats=STATS)
@@ -83,29 +95,28 @@ if __name__ == "__main__":
         encoding, stats_encoding = encoder.encode()
         
         decoder = decoderfixed(encoding=encoding, code_size=MAX_SIZE, stats=STATS)
-        decoding, stats_decoding = decoder.decode() # CR: media da quantidade de bits gerados a partir da codificacao a cada 50 iteracoes
-              # print(stats["decompression_rates"][0:5])
+        decoding, stats_decoding = decoder.decode()
     if STATS:
-            print("\n\n### Estatisticas da compressao: ###\n\n")
-            print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
+        print("\n\n### Estatisticas da compressao: ###\n\n")
+        print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
                                                 # avaliada a cada 80 bits
-            print("tamanho (em bits) do input:" + str(stats_encoding["input_size"]))                                        
-            print("tamanho (em bits) apos encoding: " + str(stats_encoding["encoded_size"]))
-            print("quantidade de codigos inseridos: " + str(stats_encoding["dict_size"]))
-            print("\n\n####################################\n\n")
+        print("tamanho (em bits) do input:" + str(stats_encoding["input_size"]))                                        
+        print("tamanho (em bits) apos encoding: " + str(stats_encoding["encoded_size"]))
+        print("quantidade de codigos inseridos: " + str(stats_encoding["dict_size"]))
+        print("\n\n####################################\n\n")
         # plot compression rate in here
-        
-            print("\n\n### Estatisticas da descompressao: ###\n\n")
-            print(f"tempo de decodificacao (em segundos): {stats_decoding['time']:.2f}")
-            print(f"quantidade de codigos usados: {stats_decoding['dict_size']}")
-            print("\n\n####################################\n\n")
-  
-
-# print("input size")
-# print(len(input_bitstr))
-# print("encoding size")
-# print(len(encoding))
-
-
-# print("decoding")
-# print(decoding)
+        plot_list(y = stats_encoding["compression_rates"],
+                    y_label = "taxa de compressao", x_label = "x80iteracoes",
+                      save_path= (filepath + "_compression_rate.png"),
+                      title="Analise da taxa de compressao")
+            
+        print("\n\n### Estatisticas da descompressao: ###\n\n")
+        print(f"tempo de decodificacao (em segundos): {stats_decoding['time']:.2f}")
+        print(f"quantidade de codigos usados: {stats_decoding['dict_size']}")
+        print("\n\n####################################\n\n")
+        print(stats_decoding["decompression_rates"][0:5])
+        plot_list(y = stats_decoding["decompression_rates"],
+                    y_label = "taxa de decompressao", x_label = "x50iteracoes",
+                      save_path= (filepath + "_decompression_rate.png"),
+                      title="Analise da taxa de descompressao")
+        # taxa de bits decodificada por iteracao. avaliado a cada 50 iteracoes
