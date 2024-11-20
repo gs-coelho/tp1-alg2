@@ -55,7 +55,8 @@ class encodervariable():
             code_in_binary = bin(self.__trie.search(I))[2:].zfill(self.__codes_bit_size)
             encoding+=code_in_binary
         end_time = time.time()
-        self.__stats["time"] = end_time - start_time
-        self.__stats["dict_size"] = self.__codes_count
-        self.__stats["encoded_size"] = len(encoding)
+        if self.__stats != None:
+            self.__stats["time"] = end_time - start_time
+            self.__stats["dict_size"] = self.__codes_count
+            self.__stats["encoded_size"] = len(encoding)
         return encoding, self.__stats

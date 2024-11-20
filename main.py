@@ -60,7 +60,12 @@ if __name__ == "__main__":
         # print(stats["decompression_rates"][0:5])
 
     # Compresses file and stores in binary file
-    encoder = EncoderClassVar(input=input_bitstr, codes_max_size=MAX_SIZE, stats=STATS)
+    encoder_params = {
+        "input": input_bitstr,
+        "initial_code_size" if VARIABLE else "codes_max_size": MAX_SIZE,
+        "stats": STATS
+    }
+    encoder = EncoderClassVar(**encoder_params)
     encoded_bitstr, stats_encoding = encoder.encode()
     binary_string_to_file(encoded_file_path, encoded_bitstr, signal_alignment=True)
 
