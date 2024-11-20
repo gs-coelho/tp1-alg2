@@ -61,8 +61,9 @@ class decoderfixed():
             it += 1
         
         end_time = time.time()
-        self.__stats["time"] = end_time - start_time
-        self.__stats["dict_size"] = insertions                            
+        if self.__stats != None:
+            self.__stats["time"] = end_time - start_time
+            self.__stats["dict_size"] = insertions                            
         decoding += previous_str    
         return decoding, self.__stats
     

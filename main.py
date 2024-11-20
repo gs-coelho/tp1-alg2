@@ -1,56 +1,19 @@
-import random
-import unicodedata
-import re
+# Encoder/Decoder 
 from encoderfixed import encoderfixed
 from decoderfixed import decoderfixed
 from encodervariable import encodervariable
 from decodervariable import decodervariable
+
+# Command-line argument parsing
 from argparse import ArgumentParser
 from os import path
+
+# Binary I/O
+from binary_io import *
+
+# Graphics and plotting
 import matplotlib.pyplot as plt
 
-def normalize_text(text):
-    """
-    Normalize text to remove accents and special characters.
-    """
-    # Normalize to NFD (decompose characters with accents)
-    normalized = unicodedata.normalize('NFD', text)
-    # Encode to ASCII, ignoring non-ASCII characters
-    ascii_text = normalized.encode('ascii', 'ignore').decode('ascii')
-    return ascii_text
-
-def text_to_binary_string(file_path):
-    """
-    Read a text file, normalize it, and convert to a binary string.
-    """
-    # Read the file
-    with open(file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
-    
-    # Normalize the content
-    normalized_content = normalize_text(content)
-    
-    # Convert normalized text to bytes
-    byte_data = normalized_content.encode('ascii')  # Ensures ASCII encoding
-    
-    # Convert each byte to an 8-bit binary string and join
-    binary_string = ''.join(f'{byte:08b}' for byte in byte_data)
-    return binary_string
-
-def file_to_binary_string(file_path):
-    with open(file_path, 'rb') as file:
-        binary_data = file.read()  # Read file as binary data
-        binary_string = ''.join(format(byte, '08b') for byte in binary_data)  # Convert to binary string
-    return binary_string
-
-def binary_string_to_file(file_path, binary_string):
-    with open(file_path, 'rb') as file:
-        binary_data = file.read()  # Read image as binary data
-        binary_string = ''.join(format(byte, '08b') for byte in binary_data)  # Convert to binary string
-    return binary_string
-
-def random_binary_string(length):
-    return ''.join(random.choices('01', k=length))
 
 def plot_list(y,y_label,x_label,save_path,title):
     x = list(range(len(y)))
@@ -62,8 +25,9 @@ def plot_list(y,y_label,x_label,save_path,title):
     plt.title(title)
     
     plt.savefig(save_path)
-
+    
 if __name__ == "__main__":
+    # Command-line argument parsing
     parser = ArgumentParser()
 
     parser.add_argument("-filename", help="caminho do arquivo a ser comprimido/descomprimido")
@@ -77,25 +41,50 @@ if __name__ == "__main__":
     VARIABLE = args.variable
     MAX_SIZE = args.maxsize
 
+    # Defining filepaths to be used in the program
     input_file_path = path.realpath(path.expanduser(FILENAME))
     filepath, ext = path.splitext(input_file_path)
-    encoded_file_path = filepath + "_encoded"
+    encoded_file_path = filepath + "_encoded" + ".lzw"
     decoded_file_path = filepath + "_decoded" + ext
+
 
     input_bitstr = file_to_binary_string(input_file_path)
 
     if VARIABLE:
-        encoder = encodervariable(input=input_bitstr, initial_code_size=MAX_SIZE, stats=STATS)
-        encoding, stats_encoding = encoder.encode()
-        
-        decoder = decodervariable(encoding=encoding, initial_code_size=MAX_SIZE, stats=STATS)
-        decoding, stats_decoding = decoder.decode()
+        EncoderClassVar = encodervariable
+        DecoderClassVar = decodervariable
     else:
-        encoder = encoderfixed(input=input_bitstr, codes_max_size=MAX_SIZE, stats=STATS)
-        encoding, stats_encoding = encoder.encode()
-        
-        decoder = decoderfixed(encoding=encoding, code_size=MAX_SIZE, stats=STATS)
-        decoding, stats_decoding = decoder.decode()
+        EncoderClassVar = encoderfixed
+        DecoderClassVar = decoderfixed
+        # CR: media da quantidade de bits gerados a partir da codificacao a cada 50 iteracoes
+        # print(stats["decompression_rates"][0:5])
+
+    # Compresses file and stores in binary file
+    encoder_params = {
+        "input": input_bitstr,
+        "initial_code_size" if VARIABLE else "codes_max_size": MAX_SIZE,
+        "stats": STATS
+    }
+    encoder = EncoderClassVar(**encoder_params)
+    encoded_bitstr, stats_encoding = encoder.encode()
+    binary_string_to_file(encoded_file_path, encoded_bitstr, signal_alignment=True)
+
+    # Reads back from file, decompresses it and stores in original format
+    encoded_bitstr_from_file = file_to_binary_string(encoded_file_path, alignment_signal=True)
+    decoder_params = {
+        "encoding": encoded_bitstr_from_file,
+        "initial_code_size" if VARIABLE else "code_size": MAX_SIZE,
+        "stats": STATS
+    }
+    decoder = DecoderClassVar(**decoder_params)
+    decoded_bitstr, stats_decoding = decoder.decode()
+    binary_string_to_file(decoded_file_path, decoded_bitstr, signal_alignment=False)
+
+    if input_bitstr == decoded_bitstr:
+        print("Arquivo original e final correspondem. Tudo certo!")
+    else:
+        print("Ocorreu um erro: arquivo original e final não correspondem.")
+
     if STATS:
         print("\n### Estatisticas da compressao: ###\n")
         print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
