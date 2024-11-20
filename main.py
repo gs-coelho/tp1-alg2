@@ -97,26 +97,25 @@ if __name__ == "__main__":
         decoder = decoderfixed(encoding=encoding, code_size=MAX_SIZE, stats=STATS)
         decoding, stats_decoding = decoder.decode()
     if STATS:
-        print("\n\n### Estatisticas da compressao: ###\n\n")
+        print("\n### Estatisticas da compressao: ###\n")
         print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
                                                 # avaliada a cada 80 bits
         print("tamanho (em bits) do input:" + str(stats_encoding["input_size"]))                                        
         print("tamanho (em bits) apos encoding: " + str(stats_encoding["encoded_size"]))
         print("quantidade de codigos inseridos: " + str(stats_encoding["dict_size"]))
-        print("\n\n####################################\n\n")
+        print("\n####################################\n")
         # plot compression rate in here
         plot_list(y = stats_encoding["compression_rates"],
                     y_label = "taxa de compressao", x_label = "x80iteracoes",
                       save_path= (filepath + "_compression_rate.png"),
                       title="Analise da taxa de compressao")
             
-        print("\n\n### Estatisticas da descompressao: ###\n\n")
+        print("\n### Estatisticas da descompressao: ###\n")
         print(f"tempo de decodificacao (em segundos): {stats_decoding['time']:.2f}")
         print(f"quantidade de codigos usados: {stats_decoding['dict_size']}")
-        print("\n\n####################################\n\n")
-        print(stats_decoding["decompression_rates"][0:5])
+        print("\n####################################\n")
         plot_list(y = stats_decoding["decompression_rates"],
                     y_label = "taxa de decompressao", x_label = "x50iteracoes",
                       save_path= (filepath + "_decompression_rate.png"),
                       title="Analise da taxa de descompressao")
-        # taxa de bits decodificada por iteracao. avaliado a cada 50 iteracoes
+        # taxa de bits decodificados por iteracao. avaliado a cada 50 iteracoes
