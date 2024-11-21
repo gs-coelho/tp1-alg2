@@ -8,23 +8,9 @@ from decodervariable import decodervariable
 from argparse import ArgumentParser
 from os import path
 
-# Binary I/O
+# File I/O
 from binary_io import *
-
-# Graphics and plotting
-import matplotlib.pyplot as plt
-
-
-def plot_list(y,y_label,x_label,save_path,title):
-    x = list(range(len(y)))
-    plt.clf()
-    plt.plot(x, y)
-    
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.title(title)
-    
-    plt.savefig(save_path)
+import json
     
 if __name__ == "__main__":
     # Command-line argument parsing
@@ -80,31 +66,42 @@ if __name__ == "__main__":
     decoded_bitstr, stats_decoding = decoder.decode()
     binary_string_to_file(decoded_file_path, decoded_bitstr, signal_alignment=False)
 
+    
+    print(f'Arquivo original: {path.split(input_file_path)[1]}')
+    print(f'Arquivo codificado: {path.split(encoded_file_path)[1]}')
+    print(f'Arquivo decodificado: {path.split(decoded_file_path)[1]}')
+
     if input_bitstr == decoded_bitstr:
-        print("Arquivo original e final correspondem. Tudo certo!")
+        print("\nArquivo original e final correspondem. Tudo certo!")
     else:
-        print("Ocorreu um erro: arquivo original e final não correspondem.")
+        print("\nOcorreu um erro: arquivo original e final não correspondem.")
 
     if STATS:
         print("\n### Estatisticas da compressao: ###\n")
-        print(f"tempo de codificacao: {stats_encoding['time']:.2f}") # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo  
-                                                # avaliada a cada 80 bits
+        print(f"tempo de codificacao: {stats_encoding['time']:.2f}")
         print("tamanho (em bits) do input:" + str(stats_encoding["input_size"]))                                        
         print("tamanho (em bits) apos encoding: " + str(stats_encoding["encoded_size"]))
         print("quantidade de codigos inseridos: " + str(stats_encoding["dict_size"]))
         print("\n####################################\n")
-        # plot compression rate in here
-        plot_list(y = stats_encoding["compression_rates"],
-                    y_label = "taxa de compressao", x_label = "x80iteracoes",
-                      save_path= (filepath + "_compression_rate.png"),
-                      title="Analise da taxa de compressao")
+        # taxa de bits da entrada que foram "pulados" por estarem representados por um codigo. avaliada a cada 80 bits
+        # plot_list(y = stats_encoding["compression_rates"],
+        #             y_label = "taxa de compressao", x_label = "x80iteracoes",
+        #               save_path= (filepath + "_compression_rate.png"),
+        #               title="Analise da taxa de compressao")
             
         print("\n### Estatisticas da descompressao: ###\n")
         print(f"tempo de decodificacao (em segundos): {stats_decoding['time']:.2f}")
         print(f"quantidade de codigos usados: {stats_decoding['dict_size']}")
         print("\n####################################\n")
-        plot_list(y = stats_decoding["decompression_rates"],
-                    y_label = "taxa de decompressao", x_label = "x50iteracoes",
-                      save_path= (filepath + "_decompression_rate.png"),
-                      title="Analise da taxa de descompressao")
         # taxa de bits decodificados por iteracao. avaliado a cada 50 iteracoes
+        # plot_list(y = stats_decoding["decompression_rates"],
+        #             y_label = "taxa de decompressao", x_label = "x50iteracoes",
+        #               save_path= (filepath + "_decompression_rate.png"),
+        #               title="Analise da taxa de descompressao")
+
+        # Saves stats files
+        suffix = "_variable" if VARIABLE else "_fixed"
+        with open(f"{filepath}_stats_encoding{suffix}.json", "w") as f:
+            json.dump(stats_encoding, f)
+        with open(f"{filepath}_stats_decoding{suffix}.json", "w") as f:
+            json.dump(stats_decoding, f)
