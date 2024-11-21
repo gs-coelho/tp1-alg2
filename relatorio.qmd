@@ -19,6 +19,20 @@ O objetivo deste trabalho é implementar o algoritmo LZW (Lempel-Ziv-Welch) de c
 
 Este relatório aborda primeiro a implementação do algoritmo em si, dando uma explicação do código e de como ele se deu. Em seguida, há uma seção de análise, onde testes com diferentes entradas são feitos a fim de observar como o programa se comporta nesses diferentes casos, utilizando métricas geradas durante a execução para quantificar as diferenças.
 
+::: {.callout-note}
+Para executar o programa, é preciso instalar as dependências com o comando abaixo:
+```{bash}
+pip install -r requirements.txt
+```
+
+O comando abaixo mostrará as flags necessárias para executar o programa:
+
+```{bash}
+python main.py -h  # Windows
+python3 main.py -h # Linux
+```
+:::
+
 ## Implementação
 
 Haviam duas opções de linguagem de programação para o trabalho: C/C++ e Python. O Python foi escolhido devido à sua facilidade de escrita e de compreensão: enquanto o C++ permite um maior controle sobre a alocação de memória e outros detalhes de mais baixo nível, o Python tem funcionalidades como um coletor de lixo que permitem um foco maior na lógica do programa em si, e os detalhes são gerenciados pela própria linguagem.
@@ -33,13 +47,18 @@ Essa é a parte onde o conteúdo visto em sala é utilizado, implementando uma t
 
 ### Encoder/Decoder
 
-### 1. Encoder com código de tamanho fixo\
+#### 1. Encoder com código de tamanho fixo
+
 Esta implementação usa códigos com tamanho predinido por parâmetro (default = 12). Quando o limite de códigos possíveis com n bits é atingido (2^n), não são mais criados códigos e apenas aqueles previamente inseridos são utilizados.
 
-### `encode`
+##### `encode`
+
 Realiza a codificação dos bits de input em codigos com tamanho de string fixo. Cria uma trie com chaves que representam sequencias de bits e valores que representam os códigos (sequenciais).
-#### Funcionamento: 
+
+###### Funcionamento: 
+
 Dado que um dicionario com os dois simbolos do alfabeto(0 e 1) já foi construido. Em seguida, o algoritmo consome símbolos do arquivo de entrada um-a-um. Ao ler um novo símbolo x, o algoritmo concatena x a uma string I, lida anteriormente, e verifica se a string Ix já foi armazenada no dicionário. Caso ela já tenha sido armazenada, o algoritmo atualiza a string I com a nova string Ix, e repete o processo. Caso a string Ix não tenha sido armazenada ainda, o algoritmo adiciona o código referente a I na string de codificação.Caso ainda houverem codigos disponíveis, insere a string Ix associada a um novo código (sequencial) no dicionário, atualiza I com x. Repete o processo até que não haja mais símbolos de entrada.
+
 ```{python}
     def encode(self):
         encoding = ""
@@ -77,10 +96,14 @@ Dado que um dicionario com os dois simbolos do alfabeto(0 e 1) já foi construid
         return encoding, self.__stats
 ```
 
-### `decode`
+##### `decode`
+
 Realiza a decodificação. Cria uma árvore trie que busca copiar a árvore da codificação, porém nesse caso a árvore mapeia de código para sequencia original de bits.
-#### Funcionamento:
+
+###### Funcionamento:
+
 Considerando que o dicionário com os dois símbolos já foi construído. O algoritmo então consome códigos da string de entrada (codificação) em blocos do tamanho definido para os códigos. Ao ler um código, o algoritmo verifica se esse já foi inserido no dicionário. Caso tenha sido, o primeiro símbolo dessa string é concatenado a string anterior, o resultado é adicionado ao dicionário caso já não esteja (foi utilizado um dicionário auxiliar para verificar isso), e impresso na saída. Finalmente, a string anterior é atualizada com a string recuperado pelo código e o processo se repete. Caso o código não esteja no dicionário, a string é concatenada ao seu primeiro símbolo, o resultado é adicionado ao dicionário e concatenado na saída.
+
 ```{python}
     def decode(self):
         decoding = ""
@@ -132,11 +155,14 @@ Considerando que o dicionário com os dois símbolos já foi construído. O algo
         return decoding, self.__stats
 ```
 
-### 2. Encoder com código de tamanho variável\
+#### 2. Encoder com código de tamanho variável
+
 Esta implementação usa códigos com tamanho inicial definido por parâmetro (default = 12) e crescente conforme a necessidade por novos códigos. Quando o limite de códigos máximo com n bits é atingido (2^n), não são mais criados códigos e apenas aqueles previamente inseridos são utilizados.
 
-### `encode`
-Realiza a codificação de forma semelhar à implementação fixa. No entanto, separa os códigos formados por apenas 1's para serem flags indicadoras da mudança de tamanho dos códigos. 
+##### `encode`
+
+Realiza a codificação de forma semelhar à implementação fixa. No entanto, separa os códigos formados por apenas 1's para serem flags indicadoras da mudança de tamanho dos códigos.
+
 ```{python}
     def encode(self):
         encoding = ""
@@ -181,8 +207,10 @@ Realiza a codificação de forma semelhar à implementação fixa. No entanto, s
         return encoding, self.__stats
 ```
 
-### `decode`
+##### `decode`
+
 Implementação semelhante à implementação fixa. No entanto, precisa tratar o caso de que o código passado é uma flag para a mudança de tamanho dos códigos.
+
 ```{python}
     def decode(self):
         decoding = ""
@@ -464,8 +492,177 @@ def reroot(self) -> bool:
 
 ## Análise
 
-{{< lipsum 2 >}}
+```{python}
+#| echo: false
+
+# Definições gerais
+import matplotlib.pyplot as plt
+import json
+from os import path
+
+def sanitize(filepath):
+    return path.realpath(path.expanduser(filepath))
+
+def plot_list(y,y_label,x_label,title):
+    x = list(range(len(y)))
+    plt.clf()
+    plt.plot(x, y)
+    
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+
+    plt.show()
+```
+
+Para poder analisar o bom funcionamento do programa, foram feitos diversos testes, executando o programa com parâmetros diferentes e formatos de arquivo diferentes. Dessas execuções extraímos diversas métricas, como a taxa de compressão (e de descompressão) do arquivo ao longo da execução do programa, o tempo total de execução e a quantidade de inserções na trie. Utilizaremos essas métricas para caracterizar o programa.
+
+Um cuidado especial tomado foi o de testar o programa com formatos de arquivo descomprimidos, como imagens em formato Bitmap (.bmp) e arquivos de texto puros (.txt). Isso é necessário porque existe um limite para quanto uma informação pode ser comprimida, relacionado à [entropia da informação definida por Shannon](https://pt.wikipedia.org/wiki/Entropia_da_informa%C3%A7%C3%A3o). Por esse motivo, arquivos já comprimidos anteriormente, como imagens .png e documentos .pdf tendem a não reduzir significativamente em tamanho com passagens adicionais por um algoritmo de compressão, o que faz com que esses formatos não sejam ideais para testar o funcionamento do programa.
+
+Nos arquivos de texto, foram feitos com três tamanhos diferentes de arquivo:
+
+1. um arquivo pequeno (6,25KB)
+2. um arquivo médio (22,6KB) 
+3. e um arquivo grande (418KB).
+
+A primeira métrica a analisar é a taxa de compressão: para encontrar esse valor, marcamos toda vez que um bit é omitido da saída por já estar representado em um código. Esse valor é amostrado a cada 80 iterações do algoritmo. Abaixo temos as taxas de compressão para os três arquivos, com largura fixa:
+
+```{python}
+#| layout-ncol: 3
+#| column: page
+
+files = [
+    "validation_data/theraven_stats_encoding_fixed.json",
+    "validation_data/frankesteinCh1-2_stats_encoding_fixed.json",
+    "validation_data/frankesteinfull_stats_encoding_fixed.json",
+]
+
+for i, file in enumerate(files):
+    with open(sanitize(file),"r") as f:
+        stats_encoding = json.load(f)
+        plot_list(y = stats_encoding["compression_rates"],
+                        y_label = "Taxa de compressão", x_label = "Iterações (x80)",
+                        title=f"Análise da taxa de compressão - Arquivo {i + 1}")
+
+```
+
+E também com largura variável:
+
+```{python}
+#| layout-ncol: 3
+#| column: page
+
+files = [
+    "validation_data/theraven_stats_encoding_variable.json",
+    "validation_data/frankesteinCh1-2_stats_encoding_variable.json",
+    "validation_data/frankesteinfull_stats_encoding_variable.json",
+]
+
+for i, file in enumerate(files):
+    with open(sanitize(file),"r") as f:
+        stats_encoding = json.load(f)
+        plot_list(y = stats_encoding["compression_rates"],
+                        y_label = "Taxa de compressão", x_label = "Iterações (x80)",
+                        title=f"Análise da taxa de compressão - Arquivo {i + 1}")
+
+```
+
+Podemos perceber que os três arquivos conseguiram atingir uma taxa de compressão semelhante ao final, próximo dos 95%. Isso significa que esse valor provavelmente está próximo do limite, e que o algoritmo está funcionando bem.
+
+Podemos perceber também que os arquivos maiores apresentaram maior variação nos valores amostrados, com os gráficos sendo muito mais erráticos ao redor da curva aparente nos arquivos maiores, enquanto nos arquivos menores o gráfico é mais bem comportado. Outro fator que influencia esse comportamento é o número de iterações/amostras: o arquivo menor levou cerca de 52000 iterações (o valor no eixo X representa 50 iterações por unidade), ao passo que o arquivo maior levou cerca de 3.6M iterações.
+
+Outro ponto importante é o de que a taxa de compressão parece subir um pouco mais lentamente na compressão variável em comparação com a compressão fixa. Isso fica ainda mais evidente ao analisar a taxa de descompressão, que mede quantos bits foram decodificados a cada amostra (medida a cada 50 iterações). Abaixo temos as taxas de descompressão para o arquivos médio:
+
+```{python}
+#| layout-ncol: 2
+#| column: page
+
+files = [
+    "validation_data/frankesteinCh1-2_stats_decoding_fixed.json",
+    "validation_data/frankesteinCh1-2_stats_decoding_variable.json",
+]
+
+titles = [
+    "Análise da taxa de descompressão - Largura Fixa",
+    "Análise da taxa de descompressão - Largura Variável"
+]
+
+for i, file in enumerate(files):
+    with open(sanitize(file),"r") as f:
+        stats_decoding = json.load(f)
+        plot_list(y = stats_decoding["decompression_rates"],
+                        y_label = "Taxa de descompressão", x_label = "Iterações (x50)",
+                        title=titles[i])
+
+```
+
+Quanto ao número de inserções na trie, em todos os casos a versão com código de largura variável teve um número de inserções maior, já que o código pode "crescer" quando necessário:
+
+|           | Fixa | Variável |
+|-----------|------|----------|
+| Arquivo 1 | 4096 | 4490     |
+| Arquivo 2 | 4096 | 12756    |
+| Arquivo 3 | 4096 | 146788   |
+
+O mesmo acontece com arquivos de imagem, que abordaremos em seguida.
+
+Nos arquivos de imagem, temos dois exemplos:
+
+1. um gradiente simples, de 400px x 400px (468KB)
+2. uma imagem mais detalhada e fotorrealista, de tamanho 640px x 426px (798KB)
+
+![Um gradiente simples.](validation_data/realistic_gradient_400x400.bmp)
+
+![Uma paisagem fotorrealista.](validation_data/sample_640x426.bmp)
+
+Abaixo temos as taxas de compressão utilizando largura fixa:
+
+```{python}
+#| layout-ncol: 2
+#| column: page
+
+files = [
+    "validation_data/realistic_gradient_400x400_stats_encoding_fixed.json",
+    "validation_data/sample_640x426_stats_encoding_fixed.json",
+]
+
+for i, file in enumerate(files):
+    with open(sanitize(file),"r") as f:
+        stats_encoding = json.load(f)
+        plot_list(y = stats_encoding["compression_rates"],
+                        y_label = "Taxa de compressão", x_label = "Iterações (x80)",
+                        title=f"Análise da taxa de compressão - Arquivo {i + 1}")
+
+```
+
+E também com a largura variável:
+
+```{python}
+#| layout-ncol: 2
+#| column: page
+
+files = [
+    "validation_data/realistic_gradient_400x400_stats_encoding_variable.json",
+    "validation_data/sample_640x426_stats_encoding_variable.json",
+]
+
+for i, file in enumerate(files):
+    with open(sanitize(file),"r") as f:
+        stats_encoding = json.load(f)
+        plot_list(y = stats_encoding["compression_rates"],
+                        y_label = "Taxa de compressão", x_label = "Iterações (x80)",
+                        title=f"Análise da taxa de compressão - Arquivo {i + 1}")
+
+```
+
+Imediatamente podemos ver que, assim como nos arquivos de texto maiores, a variabilidade da taxa de compressão também é grande. As imagens em formato bitmap tendem a ser grandes por não serem comprimidas, o que explica a variabilidade encontrada. Apesar disso, as curvas nas duas imagens se afinam ao final, chegando mais próximas de convergir a um valor fixo.
+
+Também é possível notar que a taxa de compressão foi menor na imagem realista do que no gradiente, apesar do tamanho. Isso se dá pela natureza do algoritmo LZW, que explora as repetições de padrões no texto para reduzir seu tamanho. Numa imagem mais simples, como um gradiente, há muita repetição, o que faz com que o algoritmo tenha mais oportunidades de compressão, em oposição à imagem fotorrealista, que por conter muitos detalhes diferentes, não tem muitos padrões que se repetem, o que não permite que o algoritmo seja tão eficiente. Sendo assim, podemos generalizar que o algoritmo funciona melhor em imagens com muita repetição de padrões e elementos.
+
+Pode-se perceber também que a compressão com tamanho de código variável chega mais perto do valor final gradualmente e crescendo, enquanto a versão com tamanho fixo chega a um valor máximo mas depois decai, oscilando até chegar no valor final.
 
 ## Conclusão
 
-{{< lipsum 2 >}}
+O algoritmo LZW é um algoritmo de compressão baseado em dicionários que explora padrões repetidos no arquivo de entrada para reduzir o tamanho do arquivo final. Ele funciona melhor em arquivos de texto do que imagens, e funciona melhor em arquivos não-comprimidos que possuem muita repetição, como imagens mais simples, por exemplo.
+
+A trie compacta, apesar de ser uma escolha lógica para essa aplicação, não é a melhor escolha em sua forma padrão. Otimizações como a utilização de funções de hash podem fazer com que ela seja mais eficiente para o LZW em particular.
